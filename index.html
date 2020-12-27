@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline'">
+    <title>PodcastSpeed</title>
+    <link rel="stylesheet" href="./bootstrap.min.css">
+    <link rel="stylesheet" href="./stylesheet.css">
+</head>
+<body>
+    
+    <h1 class="mb-4">PodcastSpeed</h1>
+
+    <form id="form">
+        <div class="form-group row">
+            <div class="col-7">
+                <input id="file" class="form-control-file" type="file" accept="audio/*" multiple='false'>
+            </div>
+           <div class="col-3">
+               <input id="speed" class="form-control" type="number" value=1.5 step=.1>
+            </div>
+        </div>
+        <input class="btn btn-primary" type="submit" value="Speed Up">
+    </form>
+
+    <table class='table mt-4'>
+        <tbody>
+            <tr id="inputDuration"></tr>
+            <tr id="outputDuration"></tr>
+        </tbody>
+    </table>
+    
+
+    <script>
+        const ipc = require('electron').ipcRenderer;
+
+        const form = document.getElementById("form");
+        const file = document.getElementById("file");
+        
+
+        file.addEventListener('input', (e) => {
+            document.getElementById("inputDuration").innerHTML = "";
+            document.getElementById("outputDuration").innerHTML = "";
+            ipc.send('file_selected', file.files[0].path);
+        });
+
+        form.addEventListener('submit',(e) => {
+            console.log("ready!");
+            e.preventDefault();
+            
+            const speed = document.getElementById("speed").value;
+            
+            if (file.files.length !== 0) {
+                console.log(file.files[0]);
+                ipc.send('submit', [
+                    
+                    file.files[0].path,
+                    speed
+                ]);
+
+            }
+        });
+
+        ipc.on('duration', (e, duration) => {
+            const inputDuration = document.getElementById('inputDuration');
+            var text = `<td class="w-50">Input Duration:</td>
+                <td>${duration}</td>`;
+            inputDuration.innerHTML = text;
+        });
+
+        ipc.on('completed', (e, duration) => {
+            const outputDuration = document.getElementById('outputDuration');
+            var text = `<td class="w-50">Output Duration:</td>
+                <td>${duration}</td>`;
+            outputDuration.innerHTML = text;
+        });
+    </script>
+</body>
+</html>
