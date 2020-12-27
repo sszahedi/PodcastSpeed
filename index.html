@@ -10,17 +10,21 @@
     
     <h1 class="mb-4">PodcastSpeed</h1>
 
-    <form id="form">
-        <div class="form-group row">
-            <div class="col-7">
-                <input id="file" class="form-control-file" type="file" accept="audio/*" multiple='false'>
-            </div>
-           <div class="col-3">
-               <input id="speed" class="form-control" type="number" value=1.5 step=.1>
-            </div>
+    
+    <div class="row">
+        <div class="col-4">
+            <button id='dialog' class="btn btn-primary">Choose File</button>
         </div>
-        <input class="btn btn-primary" type="submit" value="Speed Up">
-    </form>
+        <div class="col-5">
+            <p id="fileName"></p>
+        </div>
+        <div class="col-3">
+            <input id="speed" class="form-control" type="number" value=1.5 step=.1>
+        </div>
+    </div>
+    <button id="submitBtn" class="btn btn-primary mt-4" disabled>Speed Up</button>
+    
+
 
     <table class='table mt-4'>
         <tbody>
@@ -33,38 +37,41 @@
     <script>
         const ipc = require('electron').ipcRenderer;
 
-        const form = document.getElementById("form");
-        const file = document.getElementById("file");
-        
+        const submitBtn = document.getElementById("submitBtn");
+        const filePicker = document.getElementById('dialog');
 
-        file.addEventListener('input', (e) => {
+        var filePath;
+        
+        filePicker.addEventListener('click', e => {
             document.getElementById("inputDuration").innerHTML = "";
             document.getElementById("outputDuration").innerHTML = "";
-            ipc.send('file_selected', file.files[0].path);
+            ipc.send("choose-file");
         });
 
-        form.addEventListener('submit',(e) => {
-            console.log("ready!");
+        submitBtn.addEventListener('click',(e) => {
             e.preventDefault();
             
             const speed = document.getElementById("speed").value;
             
-            if (file.files.length !== 0) {
-                console.log(file.files[0]);
-                ipc.send('submit', [
-                    
-                    file.files[0].path,
-                    speed
-                ]);
-
+            if (filePath) {
+                console.log('something in filepath');
+                ipc.send('submit', [filePath, speed]);
+                document.getElementById("submitBtn").disabled = true;
             }
         });
 
-        ipc.on('duration', (e, duration) => {
+
+        ipc.on('duration', (e, data) => {
             const inputDuration = document.getElementById('inputDuration');
+            const fileName = document.getElementById("fileName");
+
             var text = `<td class="w-50">Input Duration:</td>
-                <td>${duration}</td>`;
+                <td>${data.duration}</td>`;
             inputDuration.innerHTML = text;
+            fileName.innerHTML = data.fileName;
+            filePath = data.filePath;
+            document.getElementById("submitBtn").disabled = false;
+            
         });
 
         ipc.on('completed', (e, duration) => {
@@ -72,6 +79,12 @@
             var text = `<td class="w-50">Output Duration:</td>
                 <td>${duration}</td>`;
             outputDuration.innerHTML = text;
+            filePath = null;
+
+        });
+
+        ipc.on('clear-filename', e => {
+            document.getElementById("fileName").innerHTML = "";
         });
     </script>
 </body>

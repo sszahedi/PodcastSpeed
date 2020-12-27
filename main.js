@@ -1,5 +1,6 @@
-const {app, BrowserWindow, ipcMain} = require("electron"),
+const {app, BrowserWindow, dialog, ipcMain} = require("electron"),
     path = require("path"),
+    fs = require("fs"),
     {exec} = require('child_process'),
     ffmpeg = require('ffmpeg-static'),
     ffprobe = require('ffprobe-static').path,
@@ -21,7 +22,7 @@ function createWindow() {
 
 // ffmpeg -i input -filter:a "atempo=1.5" -vn output.mp3
 function changeSpeed(input, output, speed) {
-    let runCommand = `${ffmpeg} -i "${input}" -filter:a "atempo=${speed}" -vn "${output}"`;
+    let runCommand = `"${ffmpeg}" -i "${input}" -filter:a "atempo=${speed}" -vn "${output}"`;
     return runCommand;
 }
 
@@ -42,7 +43,7 @@ function formatDuration(input) {
 
  // ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal input.mp4
 function getDuration(input) {
-    let runCommand = `${ffprobe} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal "${input}"`;
+    let runCommand = `"${ffprobe}" -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 -sexagesimal "${input}"`;
     return runCommand;
 }
 
@@ -55,19 +56,62 @@ app.whenReady().then(() => {
     });
 })
 
+ipcMain.on("choose-file", () => {
+    dialog.showOpenDialog( {
+        properties: ['openfile'],
+        filters: [{
+            name: 'Audio',
+            extensions: ['mp3', 'm4a']
+        }]
+    }).then(result => {
+        if (!result.canceled) {
+            const filePath = result.filePaths[0];
+            const fileName = path.basename(filePath);
+
+            exec(getDuration(filePath), (err, stdout) => {
+                if (err) {
+                    console.error(err);
+                    process.exit(1);
+                }
+                else {
+                    if(mainWindow instanceof BrowserWindow){
+                        mainWindow.webContents.send('duration', {
+                            'duration': formatDuration(stdout),
+                            'fileName': fileName,
+                            'filePath': filePath
+                        });
+                    }
+                }
+            });
+        }
+
+        else {
+            if (mainWindow instanceof BrowserWindow){
+                mainWindow.webContents.send("clear-filename");
+            }
+        }
+    })
+    .catch(err => console.log(err));
+});
+
 ipcMain.on("submit", (e, args) => {
-    const [filepath, speed] = args,
-        extension = path.extname(filepath),
-        filename = path.basename(filepath, extension) + "_sped.mp3",
-        cwd = path.dirname(filepath),
+    const [filePath, speed] = args,
+        extension = path.extname(filePath),
+        filename = path.basename(filePath, extension) + "_sped.mp3",
+        cwd = path.dirname(filePath),
         output = path.join(cwd, filename);
 
-    console.log("Input file: " + path.basename(filepath));
+    if (fs.existsSync(output)) {
+        console.log("deleting existing converted file first...");
+        fs.unlinkSync(output);
+    }
+
+    console.log("Input file: " + path.basename(filePath));
     console.log("Speed: " + speed);
     console.log("Output file: ", filename, '\n');
     console.log('starting conversion...');
 
-    const execCommand = exec(changeSpeed(filepath, output, speed));
+    const execCommand = exec(changeSpeed(filePath, output, speed));
     const rl = readline.createInterface({
         input: execCommand.stderr,
         crlfDelay: Infinity
@@ -86,23 +130,10 @@ ipcMain.on("submit", (e, args) => {
         const newLineString = (process.platform === 'win32') ? '\n' : '\n';
         process.stdout.write(newLineString);
         console.log('done with conversion!')
+        
     })
 });
 
-ipcMain.on('file_selected', (e, filepath) => {
-    exec(getDuration(filepath), (err, stdout) => {
-        if (err) {
-            console.error(err);
-            process.exit(1);
-        }
-        else {
-            if(mainWindow instanceof BrowserWindow){
-                mainWindow.webContents.send('duration', formatDuration(stdout));
-            }
-        }
-    });
-
-})
 
 app.on('window-all-closed', () => {
     if (process.platform !== "darwin") app.quit()

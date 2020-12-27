@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "any-shell-escape": "^0.1.1",
     "electron": "^10.1.2",
     "ffmpeg-static": "^4.2.7",
     "ffprobe-static": "^3.0.0"

@@ -1,3 +1,19 @@
 body{
     margin: 3%
 }
+
+p#fileName {
+    display:inline-block;
+    margin-bottom: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    
+}
+
+div.col-5 {
+    overflow: hidden
+}
+
+button#submitBtn {
+    width: 102.59px
+}
